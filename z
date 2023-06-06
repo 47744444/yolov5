@@ -1,0 +1,127 @@
+from flask import Flask, request, jsonify
+import cv2
+import numpy as np
+from PIL import Image
+import io
+import torch
+import argparse
+import os
+import platform
+import sys
+from pathlib import Path
+import torch
+import numpy as np
+import time
+import pyttsx3
+import speech_recognition as sr
+import time
+import threading
+import matplotlib.pyplot as plt
+from models.common import DetectMultiBackend
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
+from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
+                           increment_path, non_max_suppression, print_args, scale_segments, strip_optimizer, xyxy2xywh)
+from utils.plots import Annotator, colors
+from utils.torch_utils import select_device, smart_inference_mode
+import pyttsx3
+import speech_recognition as sr
+from PIL import Image
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QPixmap, QImage
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+app = Flask(__name__)
+
+@app.route('/predict',  methods=[ 'POST'])
+def predict():
+    # 讀取圖片並轉換為 OpenCV 格式
+    file = request.files['image']
+    file.save('1.jpg')
+    img_bytes = file.read()
+    img_np = np.array(Image.open(io.BytesIO(img_bytes)))
+    img = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    # 使用 YOLOv5 模型進行辨識
+    # result = run_image(img)
+    # 返回辨識結果
+    # return jsonify(result)
+    return "2"
+app.run()
+
+# def letterbox(im, new_shape=(640, 640), color=(114, 114, 114), auto=True, scaleFill=False, scaleup=True, stride=32):
+#     # Resize and pad image while meeting stride-multiple constraints
+#     shape = im.shape[:2]  # current shape [height, width]
+#     if isinstance(new_shape, int):
+#         new_shape = (new_shape, new_shape)
+
+#     # Scale ratio (new / old)
+#     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+#     if not scaleup:  # only scale down, do not scale up (for better val mAP)
+#         r = min(r, 1.0)
+
+#     # Compute padding
+#     ratio = r, r  # width, height ratios
+#     new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+#     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
+#     if auto:  # minimum rectangle
+#         dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
+#     elif scaleFill:  # stretch
+#         dw, dh = 0.0, 0.0
+#         new_unpad = (new_shape[1], new_shape[0])
+#         ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
+
+#     dw /= 2  # divide padding into 2 sides
+#     dh /= 2
+
+#     if shape[::-1] != new_unpad:  # resize
+#         im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+#     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+#     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+#     im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+#     return im, ratio, (dw, dh)
+
+
+# def run_image(self, img_size=640, stride=32,):
+
+#         image_path = file
+#         weights = r'./best_second.pt'
+#         device = 'cpu'
+
+#         # 导入模型
+#         model = torch.hub.load('C:/Users/liujoe1101/yolov5', 'custom', path='C:/Users/liujoe1101/yolov5/best_second.pt', source='local')
+#         img_size = check_img_size(img_size, s=stride)
+#         names = model.names
+
+#         # Padded resize
+#         img0 = cv2.imread(image_path)
+#         img = letterbox(img0, img_size, stride=stride, auto=True)[0]
+
+#         # Convert
+#         img = img.transpose((2, 0, 1))[::-1] # HWC to CHW, BGR to RGB
+#         img = np.ascontiguousarray(img)
+
+#         img = torch.from_numpy(img).to(device)
+#         img = img.float() / 255.0   # 0 - 255 to 0.0 - 1.0
+#         img = img[None]     # [h w c] -> [1 h w c]
+
+#         # inference
+#         pred = model(img)
+#         pred = non_max_suppression(pred, conf_thres=0.25, iou_thres=0.45, max_det=1000)
+
+#         # plot label
+#         det = pred[0]
+#         annotator = Annotator(img0.copy(), line_width=3, example=str(names))
+#         if len(det):
+#             det[:, :4] =  scale_segments(img.shape[2:], det[:, :4], img0.shape).round()
+#             for *xyxy, conf, cls in reversed(det):
+#                 c = int(cls)  # integer class
+#                 label = f'{names[c]} {conf:.2f}'
+#                 annotator.box_label(xyxy, label, color=colors(c, True))
+
+#         im0 = annotator.result()
+
+#         height, width, channel = im0.shape
+#         bytesPerLine = 3 * width
+#         qImg = QPixmap(QImage(im0.data, width, height, bytesPerLine, QImage.Format_RGB888))
+#         self.image_label.setPixmap(qImg)
+#         self.resize(width, height)
+#         return(det)
