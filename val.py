@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
 Validate a trained YOLOv5 detection model on a detection dataset
 
@@ -304,7 +304,7 @@ def run(
     if save_json and len(jdict):
         w = Path(weights[0] if isinstance(weights, list) else weights).stem if weights is not None else ''  # weights
         anno_json = str(Path('../datasets/coco/annotations/instances_val2017.json'))  # annotations
-        pred_json = str(save_dir / f"{w}_predictions.json")  # predictions
+        pred_json = str(save_dir / f'{w}_predictions.json')  # predictions
         LOGGER.info(f'\nEvaluating pycocotools mAP... saving {pred_json}...')
         with open(pred_json, 'w') as f:
             json.dump(jdict, f)
@@ -370,7 +370,7 @@ def parse_opt():
 
 
 def main(opt):
-    check_requirements(exclude=('tensorboard', 'thop'))
+    check_requirements(ROOT / 'requirements.txt', exclude=('tensorboard', 'thop'))
 
     if opt.task in ('train', 'val', 'test'):  # run normally
         if opt.conf_thres > 0.001:  # https://github.com/ultralytics/yolov5/issues/1466
@@ -404,6 +404,6 @@ def main(opt):
             raise NotImplementedError(f'--task {opt.task} not in ("train", "val", "test", "speed", "study")')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     opt = parse_opt()
     main(opt)

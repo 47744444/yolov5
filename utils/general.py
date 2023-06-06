@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
 General utils
 """
@@ -29,16 +29,16 @@ from typing import Optional
 from zipfile import ZipFile, is_zipfile
 
 import cv2
-import IPython
 import numpy as np
 import pandas as pd
 import pkg_resources as pkg
 import torch
 import torchvision
 import yaml
+from ultralytics.yolo.utils.checks import check_requirements
 
 from utils import TryExcept, emojis
-from utils.downloads import gsutil_getsize, curl_download
+from utils.downloads import curl_download, gsutil_getsize
 from utils.metrics import box_iou, fitness
 
 FILE = Path(__file__).resolve()
@@ -59,6 +59,7 @@ pd.options.display.max_columns = 10
 cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
 os.environ['NUMEXPR_MAX_THREADS'] = str(NUM_THREADS)  # NumExpr max threads
 os.environ['OMP_NUM_THREADS'] = '1' if platform.system() == 'darwin' else str(NUM_THREADS)  # OpenMP (PyTorch and SciPy)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # suppress verbose TF compiler warnings in Colab
 
 
 def is_ascii(s=''):
@@ -77,10 +78,18 @@ def is_colab():
     return 'google.colab' in sys.modules
 
 
-def is_notebook():
-    # Is environment a Jupyter notebook? Verified on Colab, Jupyterlab, Kaggle, Paperspace
-    ipython_type = str(type(IPython.get_ipython()))
-    return 'colab' in ipython_type or 'zmqshell' in ipython_type
+def is_jupyter():
+    """
+    Check if the current script is running inside a Jupyter Notebook.
+    Verified on Colab, Jupyterlab, Kaggle, Paperspace.
+
+    Returns:
+        bool: True if running inside a Jupyter Notebook, False otherwise.
+    """
+    with contextlib.suppress(Exception):
+        from IPython import get_ipython
+        return get_ipython() is not None
+    return False
 
 
 def is_kaggle():
@@ -90,11 +99,11 @@ def is_kaggle():
 
 def is_docker() -> bool:
     """Check if the process runs inside a docker container."""
-    if Path("/.dockerenv").exists():
+    if Path('/.dockerenv').exists():
         return True
     try:  # check if docker is in control groups
-        with open("/proc/self/cgroup") as file:
-            return any("docker" in line for line in file)
+        with open('/proc/self/cgroup') as file:
+            return any('docker' in line for line in file)
     except OSError:
         return False
 
@@ -113,7 +122,7 @@ def is_writeable(dir, test=False):
         return False
 
 
-LOGGING_NAME = "yolov5"
+LOGGING_NAME = 'yolov5'
 
 
 def set_logging(name=LOGGING_NAME, verbose=True):
@@ -121,21 +130,21 @@ def set_logging(name=LOGGING_NAME, verbose=True):
     rank = int(os.getenv('RANK', -1))  # rank in world for Multi-GPU trainings
     level = logging.INFO if verbose and rank in {-1, 0} else logging.ERROR
     logging.config.dictConfig({
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
             name: {
-                "format": "%(message)s"}},
-        "handlers": {
+                'format': '%(message)s'}},
+        'handlers': {
             name: {
-                "class": "logging.StreamHandler",
-                "formatter": name,
-                "level": level,}},
-        "loggers": {
+                'class': 'logging.StreamHandler',
+                'formatter': name,
+                'level': level,}},
+        'loggers': {
             name: {
-                "level": level,
-                "handlers": [name],
-                "propagate": False,}}})
+                'level': level,
+                'handlers': [name],
+                'propagate': False,}}})
 
 
 set_logging(LOGGING_NAME)  # run before defining LOGGER
@@ -218,7 +227,7 @@ class WorkingDirectory(contextlib.ContextDecorator):
 
 def methods(instance):
     # Get class/instance methods
-    return [f for f in dir(instance) if callable(getattr(instance, f)) and not f.startswith("__")]
+    return [f for f in dir(instance) if callable(getattr(instance, f)) and not f.startswith('__')]
 
 
 def print_args(args: Optional[dict] = None, show_file=True, show_func=False):
@@ -299,7 +308,7 @@ def check_online():
     def run_once():
         # Check once
         try:
-            socket.create_connection(("1.1.1.1", 443), 5)  # check host accessibility
+            socket.create_connection(('1.1.1.1', 443), 5)  # check host accessibility
             return True
         except OSError:
             return False
@@ -338,7 +347,7 @@ def check_git_status(repo='ultralytics/yolov5', branch='master'):
     n = int(check_output(f'git rev-list {local_branch}..{remote}/{branch} --count', shell=True))  # commits behind
     if n > 0:
         pull = 'git pull' if remote == 'origin' else f'git pull {remote} {branch}'
-        s += f"⚠️ YOLOv5 is out of date by {n} commit{'s' * (n > 1)}. Use `{pull}` or `git clone {url}` to update."
+        s += f"⚠️ YOLOv5 is out of date by {n} commit{'s' * (n > 1)}. Use '{pull}' or 'git clone {url}' to update."
     else:
         s += f'up to date with {url} ✅'
     LOGGER.info(s)
@@ -379,41 +388,6 @@ def check_version(current='0.0.0', minimum='0.0.0', name='version ', pinned=Fals
     return result
 
 
-@TryExcept()
-def check_requirements(requirements=ROOT / 'requirements.txt', exclude=(), install=True, cmds=''):
-    # Check installed dependencies meet YOLOv5 requirements (pass *.txt file or list of packages or single package str)
-    prefix = colorstr('red', 'bold', 'requirements:')
-    check_python()  # check python version
-    if isinstance(requirements, Path):  # requirements.txt file
-        file = requirements.resolve()
-        assert file.exists(), f"{prefix} {file} not found, check failed."
-        with file.open() as f:
-            requirements = [f'{x.name}{x.specifier}' for x in pkg.parse_requirements(f) if x.name not in exclude]
-    elif isinstance(requirements, str):
-        requirements = [requirements]
-
-    s = ''
-    n = 0
-    for r in requirements:
-        try:
-            pkg.require(r)
-        except (pkg.VersionConflict, pkg.DistributionNotFound):  # exception if requirements not met
-            s += f'"{r}" '
-            n += 1
-
-    if s and install and AUTOINSTALL:  # check environment variable
-        LOGGER.info(f"{prefix} YOLOv5 requirement{'s' * (n > 1)} {s}not found, attempting AutoUpdate...")
-        try:
-            # assert check_online(), "AutoUpdate skipped (offline)"
-            LOGGER.info(check_output(f'pip install {s} {cmds}', shell=True).decode())
-            source = file if 'file' in locals() else requirements
-            s = f"{prefix} {n} package{'s' * (n > 1)} updated per {source}\n" \
-                f"{prefix} ⚠️ {colorstr('bold', 'Restart runtime or rerun command for updates to take effect')}\n"
-            LOGGER.info(s)
-        except Exception as e:
-            LOGGER.warning(f'{prefix} ❌ {e}')
-
-
 def check_img_size(imgsz, s=32, floor=0):
     # Verify image size is a multiple of stride s in each dimension
     if isinstance(imgsz, int):  # integer i.e. img_size=640
@@ -429,7 +403,7 @@ def check_img_size(imgsz, s=32, floor=0):
 def check_imshow(warn=False):
     # Check if environment supports image displays
     try:
-        assert not is_notebook()
+        assert not is_jupyter()
         assert not is_docker()
         cv2.imshow('test', np.zeros((1, 1, 3)))
         cv2.waitKey(1)
@@ -450,7 +424,7 @@ def check_suffix(file='yolov5s.pt', suffix=('.pt',), msg=''):
         for f in file if isinstance(file, (list, tuple)) else [file]:
             s = Path(f).suffix.lower()  # file suffix
             if len(s):
-                assert s in suffix, f"{msg}{f} acceptable suffix is {suffix}"
+                assert s in suffix, f'{msg}{f} acceptable suffix is {suffix}'
 
 
 def check_yaml(file, suffix=('.yaml', '.yml')):
@@ -556,8 +530,8 @@ def check_dataset(data, autodownload=True):
             else:  # python script
                 r = exec(s, {'yaml': data})  # return None
             dt = f'({round(time.time() - t, 1)}s)'
-            s = f"success ✅ {dt}, saved to {colorstr('bold', DATASETS_DIR)}" if r in (0, None) else f"failure {dt} ❌"
-            LOGGER.info(f"Dataset download {s}")
+            s = f"success ✅ {dt}, saved to {colorstr('bold', DATASETS_DIR)}" if r in (0, None) else f'failure {dt} ❌'
+            LOGGER.info(f'Dataset download {s}')
     check_font('Arial.ttf' if is_ascii(data['names']) else 'Arial.Unicode.ttf', progress=True)  # download fonts
     return data  # dictionary
 
@@ -673,7 +647,7 @@ def make_divisible(x, divisor):
 
 def clean_str(s):
     # Cleans a string by replacing special characters with underscore _
-    return re.sub(pattern="[|@#!¡·$€%&()=?¿^*;:,¨´><+]", repl="_", string=s)
+    return re.sub(pattern='[|@#!¡·$€%&()=?¿^*;:,¨´><+]', repl='_', string=s)
 
 
 def one_cycle(y1=0.0, y2=1.0, steps=100):
@@ -1137,13 +1111,13 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
 imshow_ = cv2.imshow  # copy to avoid recursion errors
 
 
-def imread(path, flags=cv2.IMREAD_COLOR):
-    return cv2.imdecode(np.fromfile(path, np.uint8), flags)
+def imread(filename, flags=cv2.IMREAD_COLOR):
+    return cv2.imdecode(np.fromfile(filename, np.uint8), flags)
 
 
-def imwrite(path, im):
+def imwrite(filename, img):
     try:
-        cv2.imencode(Path(path).suffix, im)[1].tofile(path)
+        cv2.imencode(Path(filename).suffix, img)[1].tofile(filename)
         return True
     except Exception:
         return False
@@ -1153,6 +1127,7 @@ def imshow(path, im):
     imshow_(path.encode('unicode_escape').decode(), im)
 
 
-cv2.imread, cv2.imwrite, cv2.imshow = imread, imwrite, imshow  # redefine
+if Path(inspect.stack()[0].filename).parent.parent.as_posix() in inspect.stack()[-1].filename:
+    cv2.imread, cv2.imwrite, cv2.imshow = imread, imwrite, imshow  # redefine
 
 # Variables ------------------------------------------------------------------------------------------------------------

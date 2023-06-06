@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
 Download utils
 """
@@ -77,7 +77,7 @@ def safe_download(file, url, url2=None, min_bytes=1E0, error_msg=''):
         if not file.exists() or file.stat().st_size < min_bytes:  # check
             if file.exists():
                 file.unlink()  # remove partial downloads
-            LOGGER.info(f"ERROR: {assert_msg}\n{error_msg}")
+            LOGGER.info(f'ERROR: {assert_msg}\n{error_msg}')
         LOGGER.info('')
 
 
@@ -118,13 +118,11 @@ def attempt_download(file, repo='ultralytics/yolov5', release='v7.0'):
                 except Exception:
                     tag = release
 
-        file.parent.mkdir(parents=True, exist_ok=True)  # make parent dir (if required)
         if name in assets:
-            url3 = 'https://drive.google.com/drive/folders/1EFQTEUeXWSFww0luse2jB9M1QNZQGwNl'  # backup gdrive mirror
-            safe_download(
-                file,
-                url=f'https://github.com/{repo}/releases/download/{tag}/{name}',
-                min_bytes=1E5,
-                error_msg=f'{file} missing, try downloading from https://github.com/{repo}/releases/{tag} or {url3}')
+            file.parent.mkdir(parents=True, exist_ok=True)  # make parent dir (if required)
+            safe_download(file,
+                          url=f'https://github.com/{repo}/releases/download/{tag}/{name}',
+                          min_bytes=1E5,
+                          error_msg=f'{file} missing, try downloading from https://github.com/{repo}/releases/{tag}')
 
     return str(file)
